@@ -1,0 +1,9 @@
+The qcut tool was written as a replacement for the cut command in *nix when working with CSV files that use quotes as text separators. This is becoming increasingly common with the advent of programs like OpenOffice.org, which automatically quote their CSV files when saving them. This removes ambiguity in files which contain commas in data fields, and also as field delimiters. Unfortunately, trying to parse these files with cut can cause headaches.
+
+Additionally, since these CSV files are commonly created with spreadsheet software (and used as spreadsheets in some applications), it is sometimes useful to parse files based on the field name that occurs in the first line of the file, rather than by position inside the file. This was taken into account. Using Perl-compatible regular expressions, you can specify a pattern (which will be matched across the entire line, not just one field) in addition to the field name.
+
+This code was written in Perl, because it's what I know. Running it does not require any Perl knowledge; just place it somewhere in your path, mark it as executable, and use it.
+
+Some Perl hackers will look at my code and ask why I did not use Text::CSV. It was my intention to make this tool usable by anyone that already knows how to use cut. To this end, I did not want users to have to figure out how to install non-core Perl modules (such as Text::CSV) in order to get it to work. I also did not want to include a copy, which complicate matters if another copy (especially a different version) were installed on the system. You wanna do it better, go for it.
+
+The initial version of this code is known to be buggy. I'm placing it on github because some friends have shown interest, and don't mind fixing things. Here's hoping the road to stability is a short one.

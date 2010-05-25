@@ -1,0 +1,137 @@
+#!/usr/bin/perl
+
+use strict;
+use Getopt::Std;
+
+my %opts;
+getopt('d:q:f:t:x:s', \%opts);
+
+my @fields;
+my @titles;
+
+if ( $opts{h} ) {
+    HELP_MESSAGE();
+    exit;
+}
+
+if ( $opts{f} && $opts{t} ) {
+    print "ERROR: Cannot specify both field numbers and names\n\n";
+    HELP_MESSAGE();
+    exit 1;
+}
+
+# Set up options
+$opts{d} ||= "\t"; # Field delimiter
+$opts{q} ||= '"';  # Quote delimiter
+my $delim = $opts{q} . $opts{d} . $opts{q};
+
+if ( $opts{f} ) {
+    @fields = split( /,/, $opts{f} );
+    my $pos = 0;
+    for my $field ( @fields ) {
+        if ( $field =~ /(.*)-(.*)/ ) {
+            my ( $start, $end ) = ( $1, $2 );
+            $start ||= 1;
+            my @newfields = $start..$end;
+            push @fields, @newfields;
+            delete $fields[$pos];
+        }
+        $field = int($field);
+        $pos++;
+    }
+    my $fields = join( ',', @fields );
+    $fields =~ s/,,//g;
+    $fields =~ s/^,//;
+    $fields =~ s/,$//;
+    @fields = sort @fields;
+}
+elsif ( $opts{t} ) {
+    $opts{s} = 1;
+}
+
+for my $file ( @ARGV ) {
+    open FH, '<', $file;
+    if ( $opts{t} ) {
+        my $line = <FH>;
+        chomp $line;
+        @titles = field_match( $line, 1 );
+
+        my $pos = 0;
+        for my $title ( @titles ) {
+            if ( $title eq $opts{t} ) {
+                @fields = ( $pos );
+            }
+            $pos++;
+        }
+    }
+
+    while ( my $line = <FH> ) {
+        chomp $line;
+        if ( $opts{f} ) {
+            field_match( $line );
+        }
+        elsif ( $opts{t} ) {
+            if ( $line =~ m/$opts{x}/ ) {
+                field_match( $line );
+            }
+        }
+    }
+    close FH;
+}
+
+exit;
+
+sub field_match {
+    my ( $line, $return ) = @_;
+    $line =~ s/^$opts{q}//;
+    $line =~ s/$opts{q}$//;
+    $line =~ s/$opts{d}$opts{d}/$opts{d}$opts{q}$opts{q}$opts{d}/g;
+    my @line_fields = split( /$delim/, $line );
+    if ( @line_fields ) {
+        my @out_fields;
+        for my $field ( @fields ) {
+            next unless $field;
+            push @out_fields, $line_fields[$field];
+        }
+        print join( $opts{d}, @out_fields );
+        print "\n" unless $return;
+    }
+    else {
+        print $line unless $opts{s};
+    }
+
+    return @line_fields if $return;
+    return undef;
+}
+
+sub HELP_MESSAGE {
+    print <<HELP;
+Usage: qcut OPTION... [FILE]...
+Print selected parts of lines from each FILE to standard output.
+
+Designed to handle quoted CSV-type files, as produced by OpenOffice.org
+and others.
+
+  -d    use DELIM instead of TAB for field delimiter
+  -q    use QUOTE instead of " for quote delimiter
+  -f    select only these fields;  also print any line
+            that contains no delimiter character, unless
+            the -s option is specified
+  -t    field title, requires -x
+  -x    regexp for field title
+  -s    do not print lines not containing delimiters
+  -h    display this help and exit
+
+Use one, and only one of -f or -t.  Each LIST is made up of one range,
+or many ranges separated by commas.  Selected input is written in the
+same order that it is read, and is written exactly once.
+Each range is one of:
+
+  N     N'th byte, character or field, counted from 1
+  N-    from N'th byte, character or field, to end of line
+  N-M   from N'th to M'th (included) byte, character or field
+  -M    from first to M'th (included) byte, character or field
+
+With no FILE, or when FILE is -, read standard input.
+HELP
+}
